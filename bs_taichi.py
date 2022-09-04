@@ -48,14 +48,66 @@ def BS_3(u, n):
         ret += p[i] * uniform_basis_3(i, u, n + order_k - 1)
     return ret
 
+@ti.func
+def open_BS_3(u, n):
+    ret = ti.Vector.zero(float, dim)
+    for i in range(- order_k + 1, n + order_k - 2):
+        _i = clip(0, n-1, i)
+        ret += p[_i] * open_basis_3(i, u, n)
+    return ret
+
 @ti.kernel
 def sample(n: ti.i32):
     for i in sample_points:
         u = i * 1.0 / n_samples
-        sample_points[i] = BS_3(u, n)
+        sample_points[i] = open_BS_3(u, n)
 
 gui = ti.GUI("Dynamic B-Spline", res=(512, 512), background_color=0x112F41)
 # initialize()
+
+# n+1 nodes : u0 ,..., un
+
+@ti.func
+def clip(a, b, x):
+    return ti.min(b, ti.max(a, x))
+
+@ti.func
+def open_basis_1(i, u, n):
+    # i can be negative integer
+    du = 1.0 / n
+    # u_i = clip(0.0, 1.0, i * du)
+    u_i = clip(0, n, i) * du
+    u_i1 = clip(0, n, i + 1) * du
+    # u_i1 = clip(0.0, 1.0, (i + 1) * du)
+    return ti.cast(u_i <= u < u_i1, float)
+
+@ti.func
+def open_basis_2(i, u, n):
+    du = 1.0 / n
+    k = 2
+    # B1i = open_basis_1(i,u,n)
+    # B1i1 = open_basis_1(i + 1, u, n)
+    denominatior1 = clip(0,n,i + k -1) - clip(0, n, i)
+    denominatior2 = clip(0,n,i + k) - clip(0, n, i + 1)
+    term1 = 0.0 if denominatior1 == 0 else (u - du * clip(0, n, i)) / (du * denominatior1)
+    term2 = 0.0 if denominatior2 == 0 else (du *clip(0, n, i+k) - u) / (du * denominatior2)
+    return open_basis_1(i,u,n) * term1 + open_basis_1(i + 1, u, n) * term2
+
+@ti.func
+def open_basis_3(i, u, n):
+    du = 1.0 / n
+    k = 3
+    # B1i = open_basis_2(i,u,n)
+    # B1i1 = open_basis_2(i + 1, u, n)
+    denominatior1 = clip(0,n,i + k -1) - clip(0, n, i)
+    denominatior2 = clip(0,n,i + k) - clip(0, n, i + 1)
+    # term1 = 0.0 if B1i == 0.0 else (u - du * i) / (du * denominatior1)
+    # term2 = 0.0 if B1i1 == 0.0 else (du *(i+k) - u) / (du * denominatior2)
+    term1 = 0.0 if denominatior1 == 0 else (u - du * clip(0,n,i)) / (du * denominatior1)
+    term2 = 0.0 if denominatior2 == 0 else (du *clip(0,n,i+k) - u) / (du * denominatior2)
+    return open_basis_2(i,u,n) * term1 + open_basis_2(i + 1, u, n) * term2
+
+
 
 def render(cnt):
     # sample(cnt)
