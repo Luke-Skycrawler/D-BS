@@ -6,7 +6,7 @@ ti.init(ti.x64, default_fp=ti.f32)
 
 n = 8
 order_k = 3
-n_samples = 256
+n_samples = 1024
 dim = 2
 
 p = ti.Vector.field(dim, float)
@@ -75,18 +75,14 @@ def clip(a, b, x):
 def open_basis_1(i, u, n):
     # i can be negative integer
     du = 1.0 / n
-    # u_i = clip(0.0, 1.0, i * du)
     u_i = clip(0, n, i) * du
     u_i1 = clip(0, n, i + 1) * du
-    # u_i1 = clip(0.0, 1.0, (i + 1) * du)
     return ti.cast(u_i <= u < u_i1, float)
 
 @ti.func
 def open_basis_2(i, u, n):
     du = 1.0 / n
     k = 2
-    # B1i = open_basis_1(i,u,n)
-    # B1i1 = open_basis_1(i + 1, u, n)
     denominatior1 = clip(0,n,i + k -1) - clip(0, n, i)
     denominatior2 = clip(0,n,i + k) - clip(0, n, i + 1)
     term1 = 0.0 if denominatior1 == 0 else (u - du * clip(0, n, i)) / (du * denominatior1)
@@ -97,12 +93,8 @@ def open_basis_2(i, u, n):
 def open_basis_3(i, u, n):
     du = 1.0 / n
     k = 3
-    # B1i = open_basis_2(i,u,n)
-    # B1i1 = open_basis_2(i + 1, u, n)
     denominatior1 = clip(0,n,i + k -1) - clip(0, n, i)
     denominatior2 = clip(0,n,i + k) - clip(0, n, i + 1)
-    # term1 = 0.0 if B1i == 0.0 else (u - du * i) / (du * denominatior1)
-    # term2 = 0.0 if B1i1 == 0.0 else (du *(i+k) - u) / (du * denominatior2)
     term1 = 0.0 if denominatior1 == 0 else (u - du * clip(0,n,i)) / (du * denominatior1)
     term2 = 0.0 if denominatior2 == 0 else (du *clip(0,n,i+k) - u) / (du * denominatior2)
     return open_basis_2(i,u,n) * term1 + open_basis_2(i + 1, u, n) * term2
@@ -131,3 +123,6 @@ while gui.running:
             cnt += 1
             print(cnt)
             sample(cnt)
+        if e.key == 'r':
+            container.deactivate_all()
+            cnt = 0
