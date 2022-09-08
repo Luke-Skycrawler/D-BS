@@ -83,23 +83,61 @@ def open_basis_1(i, u, n):
 def open_basis_2(i, u, n):
     du = 1.0 / n
     k = 2
-    denominatior1 = clip(0,n,i + k -1) - clip(0, n, i)
-    denominatior2 = clip(0,n,i + k) - clip(0, n, i + 1)
-    term1 = 0.0 if denominatior1 == 0 else (u - du * clip(0, n, i)) / (du * denominatior1)
-    term2 = 0.0 if denominatior2 == 0 else (du *clip(0, n, i+k) - u) / (du * denominatior2)
+    denominator1 = clip(0,n,i + k -1) - clip(0, n, i)
+    denominator2 = clip(0,n,i + k) - clip(0, n, i + 1)
+    term1 = 0.0 if denominator1 == 0 else (u - du * clip(0, n, i)) / (du * denominator1)
+    term2 = 0.0 if denominator2 == 0 else (du *clip(0, n, i+k) - u) / (du * denominator2)
     return open_basis_1(i,u,n) * term1 + open_basis_1(i + 1, u, n) * term2
 
 @ti.func
 def open_basis_3(i, u, n):
     du = 1.0 / n
     k = 3
-    denominatior1 = clip(0,n,i + k -1) - clip(0, n, i)
-    denominatior2 = clip(0,n,i + k) - clip(0, n, i + 1)
-    term1 = 0.0 if denominatior1 == 0 else (u - du * clip(0,n,i)) / (du * denominatior1)
-    term2 = 0.0 if denominatior2 == 0 else (du *clip(0,n,i+k) - u) / (du * denominatior2)
+    denominator1 = clip(0,n,i + k -1) - clip(0, n, i)
+    denominator2 = clip(0,n,i + k) - clip(0, n, i + 1)
+    term1 = 0.0 if denominator1 == 0 else (u - du * clip(0,n,i)) / (du * denominator1)
+    term2 = 0.0 if denominator2 == 0 else (du *clip(0,n,i+k) - u) / (du * denominator2)
     return open_basis_2(i,u,n) * term1 + open_basis_2(i + 1, u, n) * term2
 
+@ti.func
+def dB_3(i, u, n):
+    '''
+    First derivative of basis function B with order 3
+    '''
+    du = 1.0 / n
+    k = 3
+    denominator1 = clip(0,n,i + k -1) - clip(0, n, i)
+    denominator2 = clip(0,n,i + k) - clip(0, n, i + 1)
+    term1 = 0.0 if denominator1 == 0 else (k-1) / (du * denominator1) 
+    term2 = 0.0 if denominator2 == 0 else (k-1) / (du * denominator2)
+    return open_basis_2(i, u, n) * term1 - open_basis_2(i+1, u, n) * term2
+    # FIXME: check order align
 
+@ti.func
+def dB_2(i, u, n):
+    '''
+    First derivative of order 2 basis function
+    '''
+    du = 1.0 / n
+    k = 2
+    denominator1 = clip(0,n,i + k -1) - clip(0, n, i)
+    denominator2 = clip(0,n,i + k) - clip(0, n, i + 1)
+    term1 = 0.0 if denominator1 == 0 else (k-1) / (du * denominator1) 
+    term2 = 0.0 if denominator2 == 0 else (k-1) / (du * denominator2)
+    return open_basis_1(i, u, n) * term1 - open_basis_1(i+1, u, n) * term2
+
+@ti.func
+def d2B_3(i, u, n):
+    '''
+    Second derivative of order 3 basis function
+    '''
+    du = 1.0 / n
+    k = 2
+    denominator1 = clip(0,n,i + k -1) - clip(0, n, i)
+    denominator2 = clip(0,n,i + k) - clip(0, n, i + 1)
+    term1 = 0.0 if denominator1 == 0 else (k-1) / (du * denominator1) 
+    term2 = 0.0 if denominator2 == 0 else (k-1) / (du * denominator2)
+    return term1 * dB_2(i,u,n) - term2 * dB_2(i+1, u, n)
 
 def render(cnt):
     # sample(cnt)
@@ -108,21 +146,22 @@ def render(cnt):
     gui.circles(sample_points.to_numpy(), radius = 1.0, color=0xEEFFE0)
     gui.show()
 
-cnt = 0
-while gui.running:
-    if cnt >= 1:
-        render(cnt)
-    else:
-        gui.show()
-    if gui.get_event(ti.GUI.PRESS):
-        e = gui.event
-        print(e.key)
-        if e.key == ti.GUI.LMB:
-            mxy = np.array(gui.get_cursor_pos(), dtype = np.float32)
-            p[cnt] = ti.Vector(mxy)
-            cnt += 1
-            print(cnt)
-            sample(cnt)
-        if e.key == 'r':
-            container.deactivate_all()
-            cnt = 0
+if __name__ == '__main__':
+    cnt = 0
+    while gui.running:
+        if cnt >= 1:
+            render(cnt)
+        else:
+            gui.show()
+        if gui.get_event(ti.GUI.PRESS):
+            e = gui.event
+            print(e.key)
+            if e.key == ti.GUI.LMB:
+                mxy = np.array(gui.get_cursor_pos(), dtype = np.float32)
+                p[cnt] = ti.Vector(mxy)
+                cnt += 1
+                print(cnt)
+                sample(cnt)
+            if e.key == 'r':
+                container.deactivate_all()
+                cnt = 0
