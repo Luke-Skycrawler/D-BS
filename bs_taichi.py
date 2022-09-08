@@ -14,6 +14,7 @@ container = ti.root.pointer(ti.i, 10).pointer(ti.i, 10)
 container.place(p)
 
 sample_points = ti.Vector.field(dim, float, (n_samples))
+basis_field = ti.field(float, n_samples)
 
 
 # n+1 nodes : u0 ,..., un
@@ -111,7 +112,6 @@ def dB_3(i, u, n):
     term1 = 0.0 if denominator1 == 0 else (k-1) / (du * denominator1) 
     term2 = 0.0 if denominator2 == 0 else (k-1) / (du * denominator2)
     return open_basis_2(i, u, n) * term1 - open_basis_2(i+1, u, n) * term2
-    # FIXME: check order align
 
 @ti.func
 def dB_2(i, u, n):
@@ -132,7 +132,7 @@ def d2B_3(i, u, n):
     Second derivative of order 3 basis function
     '''
     du = 1.0 / n
-    k = 2
+    k = 3
     denominator1 = clip(0,n,i + k -1) - clip(0, n, i)
     denominator2 = clip(0,n,i + k) - clip(0, n, i + 1)
     term1 = 0.0 if denominator1 == 0 else (k-1) / (du * denominator1) 
@@ -146,8 +146,32 @@ def render(cnt):
     gui.circles(sample_points.to_numpy(), radius = 1.0, color=0xEEFFE0)
     gui.show()
 
+def draw_basis(n, derivative = 1):
+    assert derivative <= 2
+    dBs = [open_basis_3, dB_3, d2B_3]
+    dB = dBs[derivative]
+    x = np.linspace(0.0, 1.0, n_samples)
+    @ti.kernel
+    def map(i: ti.i32):
+        for j in sample_points:
+            u = j * 1.0 / n_samples
+            basis_field[j] = dB(i, u, n)
+    for i in range(- order_k + 1, n + order_k - 2):
+        map(i)
+        y = basis_field.to_numpy()
+        plt.figure('data')
+        plt.plot(x, y, '.')
+        plt.plot(x, y)
+    plt.show()
+        
 if __name__ == '__main__':
     cnt = 0
+    derivative = 1
+    plot_basis_only = True
+    if plot_basis_only:
+        draw_basis(n, derivative)
+        quit()
+
     while gui.running:
         if cnt >= 1:
             render(cnt)
