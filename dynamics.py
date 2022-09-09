@@ -13,6 +13,7 @@ n_elements = n - 2 * (order_k - 1)
 alpha, beta = 35, 10
 mu = 30
 gravity = 9.8
+dt = 8e-3
 p = ti.Vector.field(dim, float)
 container = ti.root.pointer(ti.i, 10).pointer(ti.i, 10)
 container.place(p)
@@ -24,21 +25,48 @@ M = ti.Matrix.field(order_k, order_k, float)
 K = ti.Matrix.field(order_k, order_k, float)
 element.place(x, v, alpha, beta, mu, J)
 
+# TODO: for node with multiplicity, add up coeffcients
 @ti.func
 def J_ii(u, i):
-    return open_basis_3(i, u, n)
-
+    ret = 0.0
+    if i == 0:
+        for j in ti.static(range(-order_k + 1, 1)):
+            ret += open_basis_3(j, u, n)
+    elif i == n:
+        for j in ti.static(range(n, n + order_k - 2)):
+            ret += open_basis_3(j, u, n)
+    else :
+        ret = open_basis_3(i, u, n) 
+    return ret
 @ti.func
 def JTJ_ii(u, i):
-    return open_basis_3(i, u, n) ** 2
+    return J_ii(u, i) ** 2
 
 @ti.func
 def JuTJu_ii(u, i):
-    return dB_3(i,u,n) ** 2
+    ret = 0.0
+    if i == 0:
+        for j in ti.static(range(-order_k + 1, 1)):
+            ret += dB_3(j, u, n)
+    elif i == n:
+        for j in ti.static(range(n, n + order_k - 2)):
+            ret += dB_3(j, u, n)
+    else :
+        ret = dB_3(i, u, n) 
+    return ret ** 2
 
 @ti.func
 def JuuTJuu_ii(u, i):
-    return d2B_3(i,u,n) ** 2
+    ret = 0.0
+    if i == 0:
+        for j in ti.static(range(-order_k + 1, 1)):
+            ret += d2B_3(j, u, n)
+    elif i == n:
+        for j in ti.static(range(n, n + order_k - 2)):
+            ret += d2B_3(j, u, n)
+    else :
+        ret = d2B_3(i, u, n) 
+    return ret ** 2
 
 
 quad_J_ii = quad_closure(J_ii, n_quad, n_args = 2)
@@ -73,6 +101,6 @@ def stiffness(e):
 def iga():
     for e in range(n_elements):
         J = jacobian(e)
-        M = mass(e)
+        # M = mass(e)
         # D = damping(e)
-        K = stiffness(e)
+        # K = stiffness(e)
