@@ -52,7 +52,7 @@ def BS_3(u, n):
 @ti.func
 def open_BS_3(u, n):
     ret = ti.Vector.zero(float, dim)
-    for i in range(- order_k + 1, n + order_k - 2):
+    for i in range(- order_k + 1, n):
         _i = clip(0, n-1, i)
         ret += p[_i] * open_basis_3(i, u, n)
     return ret
@@ -156,7 +156,7 @@ def draw_basis(n, derivative = 1):
         for j in sample_points:
             u = j * 1.0 / n_samples
             basis_field[j] = dB(i, u, n)
-    for i in range(- order_k + 1, n + order_k - 2):
+    for i in range(- order_k + 1, n):
         map(i)
         y = basis_field.to_numpy()
         plt.figure('data')
@@ -166,7 +166,7 @@ def draw_basis(n, derivative = 1):
         
 if __name__ == '__main__':
     cnt = 0
-    derivative = 1
+    derivative = 0
     plot_basis_only = True
     if plot_basis_only:
         draw_basis(n, derivative)
