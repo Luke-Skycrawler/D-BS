@@ -2,6 +2,7 @@ import taichi as ti
 from bs_taichi import d2B_3, dB_3, open_BS_3, open_basis_3
 import numpy as np
 from quadrature import quad, quad_closure, fused_integrate_sum_closure
+from utils import minus, dot, plus, fma
 ti.init(arch = ti.x64, default_fp= ti.f32)
 
 n_quad = 2
@@ -17,12 +18,12 @@ dt = 8e-3
 du = 1.0 / n
 p_like = lambda: ti.Vector.field(dim, float) 
 p = ti.Vector.field(dim, float)
-r, d, b, v, old_p = [p_like() for _ in range(5)]
+r, d, b, v, old_p, tmp_r = [p_like() for _ in range(6)]
 # for cg
 
 # container = ti.root.pointer(ti.i, 10).pointer(ti.i, 10)
 container = ti.dense(ti.i, n)
-container.place(p, r, d, b, v, old_p)
+container.place(p, r, d, b, v, old_p, tmp_r)
 
 element = ti.root.dense(ti.i, n_elements).dense(ti.j, order_k)
 
@@ -62,7 +63,7 @@ def dnJTdnJp_closure(order):
     J_derivative_func = J_derivative_funcs[order]
     # FIXME: add p field as parameter
     @ti.func
-    def enforce_association(e, u):
+    def enforce_association(e, u, p):
         c = ti.Vector.zero(float, dim)
         for k in ti.static(range(order_k)):
             # compute v = J(u)p
@@ -214,15 +215,20 @@ def Ap(p):
     returns matrix-vector product with A
     A = 4M + 2 \triangle t D + 4(\triangle t) ^ 2 K
     '''
-    ret = ti.Vector([0.0] * n * dim)
+    # ret = ti.Vector([0.0] * n * dim)
     # FIXME: probably need a field
+
+    # for i in Ap_ret:
+    #     Ap_ret[i] = ti.Vector.zero(float, dim)
+    Ap_ret.fill(0.0)
+
     coes = [4 * mu * 0.5, 4 * dt ** 2 * alpha, 4 * dt ** 2 * beta]
     for e in range(n_elements):
         # for each element, integrate M = J^T Jp, K = alpha Ju^T Ju p + beta Juu^T Juu p
         # Mp = 0.5 * mu * int_JTJp(e * du, (e + order_k) * du)
-        Mp(e, coes[0])
-        Kp_term1(e, coes[1])
-        Kp_term2(e, coes[2])
+        Mp(e, coes[0], p)
+        Kp_term1(e, coes[1], p)
+        Kp_term2(e, coes[2], p)
 
 @ti.func
 def Mp(p):
@@ -231,16 +237,31 @@ def Mp(p):
     '''
     pass
 @ti.kernel
-def cg(p):
+def cg(p: ti.template()):
     # informally written
-    d = r = b - Ap(p)
+    Ap(p)
+    minus(b, Ap_ret, r)
+    d.copy_from(r)
     for i in range(n):
-        alpha = r.dot(r) / d.dot(Ap(d))
-        p += alpha * d
-        tmp_r = r
-        r -= alpha * Ap(d)
-        beta = r.dot(r) / tmp_r.dot(tmp_r)
-        d = r + beta * d
+        Ap(d)
+        alpha = dot(r, r) / dot(d, Ap_ret)
+        fma(p, alpha, d)
+        tmp_r.copy_from(r)
+        fma(r, -alpha, Ap_ret)
+        beta = dot(r, r) / dot(tmp_r, tmp_r)
+
+        tmp_r.copy_from(r)
+        fma(tmp_r, beta, d)
+        d.copy_from(tmp_r)
+
+    # d = r = b - Ap(p)
+    # for i in range(n):
+    #     alpha = r.dot(r) / d.dot(Ap(d))
+    #     p += alpha * d
+    #     tmp_r = r
+    #     r -= alpha * Ap(d)
+    #     beta = r.dot(r) / tmp_r.dot(tmp_r)
+    #     d = r + beta * d
         
     
 def step():

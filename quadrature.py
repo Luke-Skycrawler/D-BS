@@ -17,7 +17,7 @@ def fused_integrate_sum_closure(f, dst, src, n, order_k):
     '''
     
     @ti.func
-    def _gauss(e, coeff):
+    def _gauss(e, coeff, p):
         '''
         coeff: coefficients to time before adding to the accumulator
         '''
@@ -26,7 +26,7 @@ def fused_integrate_sum_closure(f, dst, src, n, order_k):
         b = du * (e + order_k)
         for q in range(n):
             u = 0.5 * (b-a) * X[q] + 0.5 * (b+a)
-            f(e, u)
+            f(e, u, p)
             # result stored in src
             for i in src:
                 dst[i] += src[i] * W[q] * coeff * 0.5 * (b - a)
