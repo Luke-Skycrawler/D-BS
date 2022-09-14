@@ -20,6 +20,8 @@ def fused_integrate_sum_closure(f, dst, src, n, order_k):
     def _gauss(e, coeff, p):
         '''
         coeff: coefficients to time before adding to the accumulator
+
+        ret: dst field containing the integral result
         '''
         du = 1.0 / n
         a = du * e

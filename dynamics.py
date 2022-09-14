@@ -35,6 +35,7 @@ Juu_diag = scalar()
 tmp = ti.Vector.field(dim, float)
 
 Ap_ret = ti.Vector.field(dim, float)
+
 element.place(J_diag, Ju_diag, Juu_diag, tmp, Ap_ret)
 
 basis_derivatives = [open_basis_3, dB_3, d2B_3]
@@ -141,10 +142,20 @@ def compute_b():
     b = 4\triangle t ^ 2 f_p + 8Mv - (3M - 2\triangle t D)p^{(t-\triangle t)}-\int \mu J^Tc^{(t - \triangle t)} du
 
     '''
-    for i in range(n_elements):
-        4 * dt ** 2 * gravity + 8 * Mp(v) - 3 * Mp(p_m1) - mu * quad()
-    pass
-
+    for i in b:
+        b[i] = 4 * dt ** 2 * gravity
+    coes = [8.0, -3.0 + -1.0]
+    for e in range(n_elements):
+        Mp(e, coes[0], v)
+        Mp(e, coes[1], old_p)
+        '''
+        NOTE: because we treated w as constants,
+        J will be constant over time,
+        J_{t}^T J_{t-1} p_{t-1} will be the same as JTJ p_{t-1}
+        so we just merge the two terms here to see what happens
+        '''
+    fma(b, 1.0, Ap_ret)        
+    
 # @ti.func
 # def mass(e):
 #     M[e] = J[e].transpose() @ J[e]
@@ -204,11 +215,14 @@ def compute_b():
 Mp = fused_integrate_sum_closure(JTJp, Ap_ret, tmp, n, order_k)
 '''
 computes the product of mass matrix to a random vector p, within the specified element
+all 3 functions (Mp, Kp_term1, Kp_term2) loads function values at quadrature points from `tmp`,
+ and put integrated value at Ap_ret  
 '''
 Kp_term1 = fused_integrate_sum_closure(JuTJup, Ap_ret, tmp, n, order_k, coeff = alpha)
 Kp_term2 = fused_integrate_sum_closure(JuuTJuup, Ap_ret, tmp, n, order_k, coeff = beta)
 # FIXME: is there a 0.5 ?
 
+# FIXME: all the J, Ju matrices will be constants with regard to time
 @ti.func
 def Ap(p):
     '''
@@ -230,12 +244,6 @@ def Ap(p):
         Kp_term1(e, coes[1], p)
         Kp_term2(e, coes[2], p)
 
-@ti.func
-def Mp(p):
-    '''
-    product with mass matrix M
-    '''
-    pass
 @ti.kernel
 def cg(p: ti.template()):
     # informally written

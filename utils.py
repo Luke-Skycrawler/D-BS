@@ -21,7 +21,7 @@ def dot(f1, f2):
 def fma(f1, k, f2):
     '''
     fused multiply and add
-    f2 += k f1
+    f1 += k f2
     '''
     for i in f2:
         f1[i] += k * f2[i]
