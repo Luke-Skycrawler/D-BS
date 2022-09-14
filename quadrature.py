@@ -2,9 +2,38 @@ import taichi as ti
 import numpy as np
 from scipy.special.orthogonal import p_roots
 
+
+[x, w] = p_roots(n + 1)
+X, W = ti.Vector(x, dt = ti.f32), ti.Vector(w, dt = ti.f32)
+
+def fused_integrate_sum_closure(f, dst, src, n, order_k):
+    '''
+    e: element index
+    f: basis function to be integrated with two arguments i, u and returns a dim * (n - k + 1) vector
+
+    dst: ti.field accumulator
+    src: ti.field to receive the return value of f
+    a, b: integral region
+    '''
+    
+    @ti.func
+    def _gauss(e, coeff):
+        '''
+        coeff: coefficients to time before adding to the accumulator
+        '''
+        du = 1.0 / n
+        a = du * e
+        b = du * (e + order_k)
+        for q in range(n):
+            u = 0.5 * (b-a) * X[q] + 0.5 * (b+a)
+            f(e, u)
+            # result stored in src
+            for i in src:
+                dst[i] += src[i] * W[q] * coeff * 0.5 * (b - a)
+
+    return _gauss
+
 def quad_closure(f, n, n_args = 1):
-    [x, w] = p_roots(n + 1)
-    X, W = ti.Vector(x, dt = ti.f32), ti.Vector(w, dt = ti.f32)
     # @ti.func
     # def gauss1(n):
     #     # [x,w] = p_roots(n+1)
